@@ -30,7 +30,13 @@ const Ingredients = () => {
   };
 
   const removeItemHandler = (id) => {
-    setIngredients(prevIngredients => prevIngredients.filter(ing => ing.id !== id));
+    fetch(`https://react-hooks-practice-64697-default-rtdb.firebaseio.com/ingredients/${id}.json`, 
+    {
+      method: "DELETE",
+    }
+    ).then(resp => {
+        setIngredients(prevIngredients => prevIngredients.filter(ing => ing.id !== id))
+      });
   };
 
   const filteredIngredientsHandler = useCallback(ings => setIngredients(ings), []);
