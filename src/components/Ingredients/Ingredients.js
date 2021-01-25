@@ -1,9 +1,16 @@
-import React, {useEffect, useCallback, useReducer} from 'react';
+import React, 
+       {
+        useEffect, 
+        useCallback, 
+        useReducer,
+        useMemo  
+      }                from 'react';
 
-import IngredientForm from './IngredientForm';
-import Search from './Search';
+import IngredientForm  from './IngredientForm';
+import Search          from './Search';
 import IngredientsList from './IngredientList';
-import ErrorModal from '../UI/ErrorModal';
+import ErrorModal      from '../UI/ErrorModal';
+import useHttp         from '../../hooks/http';
 
 const ingredientsReducer = (currentIngredients, action) => {
   switch(action.type) {
@@ -18,69 +25,40 @@ const ingredientsReducer = (currentIngredients, action) => {
   }
 }
 
-const httpReducer = (curHttpState, action) => {
-  switch(action.type) {
-    case("SEND"):
-      return {loading: true, error: null};
-    case("RESPONSE"):
-      return {...curHttpState, loading: false};
-    case("ERROR"):
-      return {loading: false, error: action.error.message};
-    case("CLEAR"):
-      return {...curHttpState, error: null};
-    default:
-      throw new Error("Should not reach here");
-  }
-}
 
 const Ingredients = () => {
-
+  
   const [ingredients, dispatchIngs] = useReducer(ingredientsReducer, []);
-  const [httpState, dispatchHttp] = useReducer(httpReducer, {loading: false, error: null});
-
+  
+  const {loading, error, responseData, sendRequest, extraReq, reqIdentifier} = useHttp();
+   
   useEffect(() => {
     console.log("RENDERING INGREDIENTS");
-  }, [ingredients]);
+    if(!loading && !error && reqIdentifier === "DELETE_ING") 
+      dispatchIngs({type: "DELETE", id: extraReq});
+    else if(!loading && !error && reqIdentifier === "ADD_ING")
+      dispatchIngs({type: "ADD", ingredient: {...extraReq, id: responseData.name}});
+  }, [responseData, extraReq, reqIdentifier, loading, error]);
 
-  const addIngredientHandler = ing => {
-    dispatchHttp({type: "SEND"});
-    fetch("https://react-hooks-practice-64697-default-rtdb.firebaseio.com/ingredients.json", {
-      method: "POST",
-      body: JSON.stringify(ing),
-      headers: {"Content-type": "application/json"}
-    })
-      .then(response => {
-        dispatchHttp({type: "RESPONSE"});
-        return response.json();
-      })
-        .then(responseData => 
-          dispatchIngs({
-              type: "ADD", 
-              ingredient: {
-                  ...ing, 
-                  id: responseData.name
-              }
-          })
-         )
-        .catch(error => {
-          dispatchHttp({type: "ERROR", error: error});
-        });
-  };
+  const addIngredientHandler = useCallback(ing => {
+    sendRequest(
+      "https://react-hooks-practice-64697-default-rtdb.firebaseio.com/ingredients.json",
+      "POST",
+      JSON.stringify(ing),
+      ing,
+      "ADD_ING"
+    );
+  }, [sendRequest]);
 
-  const removeItemHandler = (id) => {
-    dispatchHttp({type: "SEND"});
-    fetch(`https://react-hooks-practice-64697-default-rtdb.firebaseio.com/ingredients/${id}.json`, 
-    {
-      method: "DELETE",
-    })
-      .then(resp => {
-        dispatchHttp({type: "RESPONSE"});
-        dispatchIngs({type: "DELETE", id: id});
-      })
-      .catch(error => {
-        dispatchHttp({type: "ERROR", error: error});
-      });
-  };
+  const removeItemHandler = useCallback(id => {
+    sendRequest(
+      `https://react-hooks-practice-64697-default-rtdb.firebaseio.com/ingredients/${id}.json`,
+      "DELETE",
+      null,
+      id,
+      "DELETE_ING"
+    ); 
+  }, [sendRequest] );
 
   const filteredIngredientsHandler = useCallback(filteredIngs => 
     dispatchIngs({
@@ -88,19 +66,26 @@ const Ingredients = () => {
         ingredients: filteredIngs}
     ), []);
 
-  const closeModalHandler = () => dispatchHttp({type: "CLEAR", error: null});
+  const closeModalHandler = useCallback(() => {}, []);
+
+  const ingredientsList = useMemo(() => (
+    <IngredientsList 
+        ingredients={ingredients}
+        onRemoveItem={removeItemHandler}
+      />
+  ), [ingredients, removeItemHandler]);
 
   return (
     <div className="App">
-      {httpState.error && 
+      {error && 
         <ErrorModal onClose={closeModalHandler}>
-          {httpState.error}
+          {error}
         </ErrorModal>
       }
-      <IngredientForm addIngredient={addIngredientHandler} loading={httpState.loading}/>
+      <IngredientForm addIngredient={addIngredientHandler} loading={loading}/>
       <section>
         <Search filteredIngredients={filteredIngredientsHandler}/>
-        <IngredientsList ingredients={ingredients} onRemoveItem={removeItemHandler}/>
+        {ingredientsList}
       </section>
     </div>
   );
