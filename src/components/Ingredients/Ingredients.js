@@ -25,12 +25,19 @@ const ingredientsReducer = (currentIngredients, action) => {
   }
 }
 
-
 const Ingredients = () => {
   
   const [ingredients, dispatchIngs] = useReducer(ingredientsReducer, []);
   
-  const {loading, error, responseData, sendRequest, extraReq, reqIdentifier} = useHttp();
+  const {
+    loading, 
+    error, 
+    responseData, 
+    extraReq, 
+    reqIdentifier, 
+    sendRequest, 
+    clear
+  } = useHttp();
    
   useEffect(() => {
     console.log("RENDERING INGREDIENTS");
@@ -66,11 +73,9 @@ const Ingredients = () => {
         ingredients: filteredIngs}
     ), []);
 
-  const closeModalHandler = useCallback(() => {}, []);
-
   const ingredientsList = useMemo(() => (
     <IngredientsList 
-        ingredients={ingredients}
+        ingredients={ingredients} 
         onRemoveItem={removeItemHandler}
       />
   ), [ingredients, removeItemHandler]);
@@ -78,7 +83,7 @@ const Ingredients = () => {
   return (
     <div className="App">
       {error && 
-        <ErrorModal onClose={closeModalHandler}>
+        <ErrorModal onClose={clear}>
           {error}
         </ErrorModal>
       }

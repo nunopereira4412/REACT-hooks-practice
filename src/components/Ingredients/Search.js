@@ -2,12 +2,22 @@ import React, {useState, useEffect, useRef} from 'react';
 
 import Card from '../UI/Card';
 import './Search.css';
+import useHttp from '../../hooks/http';
+import ErrorModal from '../UI/ErrorModal';
 
 const Search = React.memo(props => {
 
   const [inputFilter, setInputFilter] = useState("");
   const {filteredIngredients} = props;
   const inputRef = useRef();
+
+  const {
+    loading, 
+    error, 
+    responseData,  
+    sendRequest, 
+    clear
+  } = useHttp();
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -16,29 +26,40 @@ const Search = React.memo(props => {
           ? "" 
           : `?orderBy="title"&equalTo="${inputFilter}"`;
 
-        fetch("https://react-hooks-practice-64697-default-rtdb.firebaseio.com/ingredients.json" + queryParams)
-        .then(response => response.json())
-        .then(responseData => {
-          const fetchedFilteredIngs = [];
-          for(let key in responseData)
-            fetchedFilteredIngs.push({
-                title: responseData[key].title,
-                amount: responseData[key].amount,
-                id: key
-            });
-          filteredIngredients(fetchedFilteredIngs);
-        });
+        sendRequest(
+          "https://react-hooks-practice-64697-default-rtdb.firebaseio.com/ingredients.json" + queryParams,
+          "GET"
+        ); 
       }
     }, 500); 
     return () => clearTimeout(timer);
-  }, [inputFilter, filteredIngredients, inputRef]);
+  }, [inputFilter, inputRef, sendRequest]);
+
+  useEffect(() => {
+    if(!loading && !error && responseData) {
+      const fetchedFilteredIngs = [];
+        for(let key in responseData)
+          fetchedFilteredIngs.push({
+              title: responseData[key].title,
+              amount: responseData[key].amount,
+              id: key
+          });
+      filteredIngredients(fetchedFilteredIngs); 
+    }
+  }, [filteredIngredients, loading, error, responseData]);
 
   return (
     <section className="search">
+      {error && 
+        <ErrorModal onClose={clear}>
+          {error}
+        </ErrorModal>
+      }
       <Card>
         <div className="search-input">
           <label>Filter by Title</label>
-          <input 
+          {loading &&  <span>...loading</span>} 
+            <input 
               ref      = {inputRef}
               type     = "text" 
               value    = {inputFilter}
